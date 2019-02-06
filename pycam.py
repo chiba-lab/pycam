@@ -1,5 +1,5 @@
 ### 4K Camera Code
-### This code will take in multiple BRIO cameras and record from them simultaneously. 
+### This code will take in multiple BRIO cameras and record from them simultaneously.
 ### Andy Thai - andy.thai9@gmail.com
 
 # General libraries
@@ -57,7 +57,7 @@ HEIGHT = 2160 # 2160 default
 
 ## FPS COUNTER CLASS
 ## This is a separate class from the camera. It times the frames per second and returns an
-## estimate of the average FPS through the entire video recording. 
+## estimate of the average FPS through the entire video recording.
 class FPS:
 	def __init__(self):
 		# Store the start time, end time, and total number of frames
@@ -91,10 +91,10 @@ class FPS:
 			return 0
 		else:
 			return self._numFrames / self.elapsed()
-		
-		
+
+
 ## WEBCAM CLASS
-## This is a class for an object that represents a single camera. 
+## This is a class for an object that represents a single camera.
 ## It requires initialization before use, and has the FPS counter integrated into it.
 class WebcamVideoStream:
 	def __init__(self, src=0):
@@ -104,19 +104,19 @@ class WebcamVideoStream:
 		self.stream.set(4, HEIGHT)						# Index 4 = height (default 2160)
 		self.stream.set(5, 30.0)						# Index 5 = camera's internal max fps
 		self.resolution = (WIDTH, HEIGHT)				# Tuple that holds default resolution pairing
-		
+
 
 		# Output settings
 		self.fps = -1									# FPS for output video
 		self.video_name = ''							# Output path file (where it will be saved)
 		self.fourcc = ''								# Codec to use (XVID to save space, IYUV for more FPS)
 		self.out = -1									# Videowriter variable, used to actually write video data to disk
-		
+
 
 		# FPS information and synchronization initialization
 		self.FPS_counter_write = FPS()
 		self.FPS_counter_read = FPS()
-		self.frame_index = -1							# Frame refresh rate. This is used to keep the video recording FPS in sync. 
+		self.frame_index = -1							# Frame refresh rate. This is used to keep the video recording FPS in sync.
 		self.current_frame = 0							# Current frame index
 		self.num_frames = -1							# Number of seconds to record * fps
 
@@ -125,13 +125,13 @@ class WebcamVideoStream:
 
 		# Initialize the variable used to indicate if the thread should be stopped
 		self.stopped = False
-		
+
 	def start(self):
 		# Start the thread to read and write frames from the video stream
-		self.FPS_counter_read.start() 
+		self.FPS_counter_read.start()
 		self.FPS_counter_write.start()
 		Thread(target=self.update, args=()).start()
-		Thread(target=self.write, args=()).start() # Thread that does the recording
+		#Thread(target=self.write, args=()).start() # Thread that does the recording
 		return self
 
 	def update(self):
@@ -140,18 +140,29 @@ class WebcamVideoStream:
 			# If the thread indicator variable is set, stop the thread
 			if self.stopped:
 				return
-	
+
 			# Otherwise, read the next frame from the stream
 			end = datetime.datetime.now()
 			elaps = end - self.FPS_counter_read._start
-			
-			
+
+
 			if elaps.total_seconds() > self.frame_index * self.current_frame:
-				
+				s1 = time.time()
 				(self.grabbed, self.frame) = self.stream.read()
-				
+				el1 = time.time() - s1
+				print("Time to read: " + el1)
+
+				s2 = time.time()
+				self.out.write(self.frame)
+				el2 = time.time() - s2
+				print("Time to write: " + el2)
+				self.current_frame += 1
+
+				# Update FPS counter
+				self.FPS_counter_write.update()
+
 				self.FPS_counter_read.update()
-				
+
 				#self.out.write(self.frame)
 				#self.current_frame += 1
 
@@ -170,7 +181,7 @@ class WebcamVideoStream:
 			# Otherwise, write the next frame to the output file
 			end = datetime.datetime.now()
 			elaps = end - self.FPS_counter_write._start
-			
+
 			# Synchronize writing frames to standardize video length
 			# This is required so the frames per second remain consistent
 			# throughout video recording. Otherwise FPS will jump around and
@@ -182,27 +193,27 @@ class WebcamVideoStream:
 
 				# Update FPS counter
 				self.FPS_counter_write.update()
-			
+
 			#else:
 				#time.sleep(((self.frame_index * self.current_frame) - elaps.total_seconds())*(2/3))
-			
-				
+
+
 	def read(self):
 		# Return the frame most recently read
 		return self.frame
-			
+
 
 	def stop(self):
 		# Indicate that the thread should be stopped
 		self.stopped = True
 		self.FPS_counter_write.stop()
 		self.FPS_counter_read.stop()
-		# Wait five seconds before terminating to allow for 
+		# Wait five seconds before terminating to allow for
 		# background processes to close down to avoid any errors.
 		time.sleep(5)
 		self.stream.release()
 		self.out.release()
-		
+
 ## MAIN METHOD
 ## We actually run the code here.
 def main():
@@ -228,7 +239,7 @@ def main():
 		help="Number of seconds to record video for (default: -1)")
 
 	# FPS of the output video.
-	# Avoid values that are too high. Otherwise the output video will 
+	# Avoid values that are too high. Otherwise the output video will
 	# not be synchronized and will be too short relative to the recording time.
 	# Default: 5
 	ap.add_argument("-f", "--fps", type=int, default=5,
@@ -237,15 +248,15 @@ def main():
 	# Codec used for the output video.
 	# Testing between different codecs indicate that we should consider between
 	# YUV (codec: IYUV) or XVID (codec: XVID). YUV will give better FPS performance
-	# on this computer, but will cause output files to be huge. 
+	# on this computer, but will cause output files to be huge.
 	# XVID is fairly slower, but files are relatively small and compressed.
 	# Potential alternatives can also include MJPG, which is the fastest, but highly compressed
 	# and will affect video quality more so than the other codecs.
 	ap.add_argument("-c", "--codec", type=str, default='MJPG',
 	help="Codec to use; use IYUV for better FPS, XVID for more compression, MJPG for fastest FPS but hurts quality (default: \"MJPG\")")
 
-	# Path to save the recorded video files. 
-	# Default: outputX.avi, where X is the respective camera the video was recording from. 
+	# Path to save the recorded video files.
+	# Default: outputX.avi, where X is the respective camera the video was recording from.
 	ap.add_argument("-o1", "--out1", type=str, default='output1.avi',
 		help="Name of the output file path for camera 1 (default: \"output1.avi\")")
 	ap.add_argument("-o2", "--out2", type=str, default='output2.avi',
@@ -268,7 +279,7 @@ def main():
 		help="Index value for camera 3 (default: 2)")
 	ap.add_argument("-c4", "--cam4", type=int, default=3,
 		help="Index value for camera 4 (default: 3)")
-	
+
 	# Conclude parsing the arguments.
 	args = vars(ap.parse_args())
 
@@ -297,10 +308,10 @@ def main():
 	# ##################### #
 	#	INITIALIZE CAMERAS	#
 	# ##################### #
-	
+
 	# Threads
 	#cv2.setNumThreads(4)
-	
+
 	# You can manually edit the codec here if needed.
 	FOURCC_CODEC = cv2.VideoWriter_fourcc(*args["codec"])
 
@@ -309,44 +320,44 @@ def main():
 	# and starts the FPS counter
 	# Camera 1 setup
 	print("\n[INFO] Initializing video camera stream 1...")
-	vs1 = WebcamVideoStream(src=args["cam1"])		
+	vs1 = WebcamVideoStream(src=args["cam1"])
 	vs1.fps = args["fps"]							# Set FPS
 	vs1.num_frames = args["seconds"] * vs1.fps		# Set total amount of frames to record
 	vs1.out = cv2.VideoWriter(args["out1"], FOURCC_CODEC, vs1.fps, vs1.resolution)
 	vs1.frame_index = 1 / vs1.fps
 	vs1.stream.set(cv2.CAP_PROP_FPS, vs1.fps)
 	vs1.out.set(cv2.VIDEOWRITER_PROP_NSTRIPES,5)
-	
-	# Camera 2 setup
-	print("\n[INFO] Initializing video camera stream 2...")
-	vs2 = WebcamVideoStream(src=args["cam2"])		
-	vs2.fps = args["fps"]							# Set FPS
-	vs2.num_frames = args["seconds"] * vs2.fps		# Set total amount of frames to record
-	vs2.out = cv2.VideoWriter(args["out2"], FOURCC_CODEC, vs2.fps, vs2.resolution)
-	vs2.frame_index = 1 / vs2.fps
-	vs2.stream.set(cv2.CAP_PROP_FPS, vs2.fps)
-	vs2.out.set(cv2.VIDEOWRITER_PROP_NSTRIPES,5)
 
-	# Camera 3 setup
-	print("\n[INFO] Initializing video camera stream 3...")
-	vs3 = WebcamVideoStream(src=args["cam3"])		
-	vs3.fps = args["fps"]							# Set FPS
-	vs3.num_frames = args["seconds"] * vs3.fps		# Set total amount of frames to record
-	vs3.out = cv2.VideoWriter(args["out3"], FOURCC_CODEC, vs3.fps, vs3.resolution)
-	vs3.frame_index = 1 / vs3.fps
-	vs3.stream.set(cv2.CAP_PROP_FPS, vs3.fps)
-	vs3.out.set(cv2.VIDEOWRITER_PROP_NSTRIPES,5)
-
-	# Camera 4 setup
-	print("\n[INFO] Initializing video camera stream 4...")
-	vs4 = WebcamVideoStream(src=args["cam4"])		
-	vs4.fps = args["fps"]							# Set FPS
-	vs4.num_frames = args["seconds"] * vs4.fps		# Set total amount of frames to record
-	vs4.out = cv2.VideoWriter(args["out4"], FOURCC_CODEC, vs4.fps, vs4.resolution)
-	vs4.frame_index = 1 / vs4.fps
-	vs4.stream.set(cv2.CAP_PROP_FPS, vs4.fps)
+	# # Camera 2 setup
+	# print("\n[INFO] Initializing video camera stream 2...")
+	# vs2 = WebcamVideoStream(src=args["cam2"])
+	# vs2.fps = args["fps"]							# Set FPS
+	# vs2.num_frames = args["seconds"] * vs2.fps		# Set total amount of frames to record
+	# vs2.out = cv2.VideoWriter(args["out2"], FOURCC_CODEC, vs2.fps, vs2.resolution)
+	# vs2.frame_index = 1 / vs2.fps
+	# vs2.stream.set(cv2.CAP_PROP_FPS, vs2.fps)
+	# vs2.out.set(cv2.VIDEOWRITER_PROP_NSTRIPES,5)
+	#
+	# # Camera 3 setup
+	# print("\n[INFO] Initializing video camera stream 3...")
+	# vs3 = WebcamVideoStream(src=args["cam3"])
+	# vs3.fps = args["fps"]							# Set FPS
+	# vs3.num_frames = args["seconds"] * vs3.fps		# Set total amount of frames to record
+	# vs3.out = cv2.VideoWriter(args["out3"], FOURCC_CODEC, vs3.fps, vs3.resolution)
+	# vs3.frame_index = 1 / vs3.fps
+	# vs3.stream.set(cv2.CAP_PROP_FPS, vs3.fps)
+	# vs3.out.set(cv2.VIDEOWRITER_PROP_NSTRIPES,5)
+	#
+	# # Camera 4 setup
+	# print("\n[INFO] Initializing video camera stream 4...")
+	# vs4 = WebcamVideoStream(src=args["cam4"])
+	# vs4.fps = args["fps"]							# Set FPS
+	# vs4.num_frames = args["seconds"] * vs4.fps		# Set total amount of frames to record
+	# vs4.out = cv2.VideoWriter(args["out4"], FOURCC_CODEC, vs4.fps, vs4.resolution)
+	# vs4.frame_index = 1 / vs4.fps
+	# vs4.stream.set(cv2.CAP_PROP_FPS, vs4.fps)
 	vs4.out.set(cv2.VIDEOWRITER_PROP_NSTRIPES,5)
-	
+
 	# ################# #
 	#	READ ON PULSES	#
 	# ################# #
@@ -357,17 +368,17 @@ def main():
 		# Set up serial port to read start pulse
 		COM_PORT = 'COM4' # USB Serial COM Port
 		ser = serial.Serial(port=COM_PORT, baudrate = 115200, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS, timeout=1)
-		
+
 		# Wait for pulse before starting
 		print('[INFO] Waiting for TTL pulse...')
 		PULSE_START = False
 
 		# Keep reading from the port until a valid pulse is detected.
 		while PULSE_START is False:
-		
+
 			# Read input data
 			pulse = ser.read(1)
-			
+
 			# Check if ON pulse occurred, if so, start recording.
 			if pulse is b'\x00':
 				PULSE_START = True
@@ -379,13 +390,13 @@ def main():
 	# ######################### #
 
 	# Start the video streams
-	vs1.start() 
+	vs1.start()
 	vs2.start()
 	vs3.start()
 	vs4.start()
-	
+
 	print("\n[INFO] Recording...")
-	
+
 	# ######################### #
 	#	WAIT FOR END CONDITION	#
 	# ######################### #
@@ -412,11 +423,11 @@ def main():
 		PULSE_STOP = False
 		try:
 			# Keep recording until stop pulse is sent
-			while PULSE_STOP is False:	
+			while PULSE_STOP is False:
 
 				# Read from serial
 				pulse = ser.read(1)
-				
+
 				# Add to timestamp
 				if pulse is b'\x00':
 					TIMESTAMPS.append([str(datetime.datetime.now().strftime("%S.%f")[:-2]), pulse])
@@ -425,33 +436,33 @@ def main():
 				if pulse is b'':
 					PULSE_STOP = True
 					print('\n[INFO] STOP PULSE DETECTED\n')
-					
+
 				## Render
 				#frame1 = vs1.read()
 				#frame2 = vs2.read()
 				#frame3 = vs3.read()
 				#frame4 = vs4.read()
-				
+
 				#if not frame1 is None:
 					#frame1 = (cv2.resize(frame1, (640, 480), interpolation = cv2.INTER_LINEAR))
 					#frame2 = (cv2.resize(frame2, (640, 480), interpolation = cv2.INTER_LINEAR))
 					#frame3 = (cv2.resize(frame3, (640, 480), interpolation = cv2.INTER_LINEAR))
 					#frame4 = (cv2.resize(frame4, (640, 480), interpolation = cv2.INTER_LINEAR))
-					
+
 					#frame_top = np.hstack((frame1, frame2))
 					#frame_bottom= np.hstack((frame3, frame4))
-					
+
 					#frame = np.vstack((frame_top, frame_bottom))
-					
+
 					#cv2.imshow('Frame', frame) ## EG
-					
+
 				#cv2.waitKey(1)
 		except KeyboardInterrupt:
 			pass
 
 	# ################# #
 	#	STOP RECORDING	#
-	# ################# #	
+	# ################# #
 
 	# Stop recording from all the streams.
 	# All these streams must be stopped via multithreading due to the five second sleep command
@@ -473,16 +484,16 @@ def main():
 	vs2_thread.join()
 	vs3_thread.join()
 	vs4_thread.join()
-	
+
 	cv2.destroyAllWindows()
-	
+
 	print('[INFO] All recordings stopped!')
 
 	# ######################### #
 	#	PRINT FPS INFORMATION	#
 	# ######################### #
 
-	# Print out FPS here. 
+	# Print out FPS here.
 	# It is CRUCIAL to note that the average FPS for each camera must be extremely close to the target
 	# FPS, otherwise there will be timing and synchronization issues (Videos will be shorter than
 	# the expected length!)
@@ -519,7 +530,7 @@ def main():
 		print('[WARNING]: Average output FPS for camera 4 does not closely match specified FPS!')
 
 	print('\n[INFO] Saving TTL pulse data to ' + str(cwd))
-		
+
 	# Save data to csv file in train_recordings folder
 	with open(cwd, 'w') as csvfile:
 		writer = csv.writer(csvfile, delimiter=',')
@@ -527,7 +538,7 @@ def main():
 		for i in range(len(TIMESTAMPS)):
 			writer.writerow([TIMESTAMPS[i][0], TIMESTAMPS[i][1]])
 	csvfile.close()
-	
+
 	print('\nPROGRAM CONCLUDED!')
 	return
 
