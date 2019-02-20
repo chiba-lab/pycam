@@ -14,8 +14,10 @@ int main(){
       }
 
    // only gets lower res right now, will change to 4K
-   int frame_width = vcap.get(CV_CAP_PROP_FRAME_WIDTH);
-   int frame_height = vcap.get(CV_CAP_PROP_FRAME_HEIGHT);
+	int frame_width = 3840;
+	int frame_height = 2160;
+	vcap.set(CV_CAP_PROP_FRAME_WIDTH, frame_width);
+	vcap.set(CV_CAP_PROP_FRAME_HEIGHT, frame_height);
    VideoWriter video("out.avi",CV_FOURCC('M','J','P','G'),10, Size(frame_width,frame_height),true);
 
    Mat currFrame;
@@ -29,7 +31,7 @@ void read(VideoCapture& vcap) {
   currFrame = frame;
 }
 
-void write(Mat& frame, VideoWriter& video) {
+void write(Mat& frame, VideoWriter& video){
   video.write(frame);
   imshow("Frame", frame);
   char c = (char)waitKey(33);
