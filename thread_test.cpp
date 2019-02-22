@@ -14,18 +14,33 @@ using namespace cv;
 #define NUM_THREADS 2
 #define FPS 30
 
+public:
+	std::vector<Mat> frames;
+
 struct Frame {
 	Mat frame;
 	int frame_index;
 };
 
 
-void read(VideoCapture *vcap, Frame *frame_pointer) {
-	Mat update_frame;
-	update_frame = frame_pointer->frame;
-	//vcap >> update_frame;
-	cout << "Read new frame!" << endl;
-	frame_pointer->frame_index = frame_pointer->frame_index + 1;
+void read(int index) {
+	VideoCapture cap(index, CAP_ANY);
+	while (true) {
+		Mat frame;
+		(*cap) >> frame;
+		frames.
+	}
+
+
+
+
+
+
+	// Frame outputFrame;
+	// Mat frame;
+	// vcap >> frame;
+	// cout << "Read new frame!" << endl;
+	// frame_pointer->frame_index = frame_pointer->frame_index + 1;
 }
 
 void write(VideoWriter *video, Frame *frame_pointer) {
